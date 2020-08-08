@@ -1,0 +1,8 @@
+/hlpy.egg-info
+/build
+/dist
+__pycache__
+
+/hlpy/data/nn.py
+/hlpy/data/optim.txt
+/hlpy/data/weights.pt
