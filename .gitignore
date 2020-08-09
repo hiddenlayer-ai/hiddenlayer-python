@@ -4,5 +4,6 @@
 __pycache__
 
 /hlpy/data/nn.py
-/hlpy/data/optim.txt
+/hlpy/data/optim.py
 /hlpy/data/weights.pt
+/hlpy/data/state.json

@@ -1,6 +1,11 @@
 import os
 import base64
+import json
+import atexit
+
 import torch
+import torch.nn as nn
+import torch.optim as optim
 
 from .client import Client
 
@@ -21,10 +26,21 @@ class Model:
 		self._secret_key = secret_key
 
 		self._cycleid = None
+		self._public_key = None
 		self._neural_net = None
 		self._optimizer = None
+		self._criterion = None
 
-	def forward(self, input):
+		# load from disk if they exist
+		if os.path.exists(os.path.join(HERE, 'data', 'nn.py')):
+			self._load_neural_network()
+
+		if os.path.exists(os.path.join(HERE, 'data', 'state.json')):
+			self._load_state()
+
+		atexit.register(self._cleanup)
+
+	def forward(self, X):
 		# check the most recent cycleid
 		resp = self._client.get_cycleid()
 
@@ -34,6 +50,7 @@ class Model:
 
 		if resp != self._cycleid:
 			# we have a new model to download
+			print("downloading current model")
 			self._cycleid = resp
 			self._download_current_model()
 
@@ -41,12 +58,65 @@ class Model:
 			# load the neural net and weights from disk into memory
 			self._load_neural_network()
 
-		return self._neural_net.forward(input)
+		return self._neural_net.forward(X)
 
-	def optimize(self, input, target):
+	def optimize(self, X, y):
 		# optimize the stored network
-		# send to the blockchain if it is ready
-		pass
+
+		# load the optimizer into memory if it has not already been
+		if not self._optimizer:
+			self._load_optimizer()
+
+		self._optimizer.zero_grad()
+
+		y_p = self._neural_net.forward(X)
+
+		loss = self._criterion(y_p, y)
+		loss.backward()
+		self._optimizer.step()
+
+		# this is heavily in development / debugging
+
+		# if time to encrypt and send off
+		do = input("test?: ") == "yes"
+
+		if do:
+			parameters = list(self._neural_net.parameters())
+
+			# might be able to do better list comprehesions here. check itertools.chain
+			flats = [layer.flatten() for layer in parameters]
+			out = []
+
+			for each in flats:
+				out.extend([int(10000 * val) for val in each])
+
+			offset = -min(out)  # offset so vals to-be-encrypted will be non-negative
+
+			out = list(map(lambda x: x + offset, out))
+
+			print(out)
+			print(offset)
+
+			# encrypt each value with paillier
+
+			# send to the blockchain
+
+	def _cleanup(self):
+		# run upon exit of program
+		# store state and weights
+
+		state = {
+			'cycleid': self._cycleid,
+			'public-key': self._public_key
+		}
+
+		state_str = json.dumps(state)
+
+		with open(os.path.join(HERE, 'data', 'state.json'), 'w') as file:
+			file.write(state_str)
+
+		torch.save(self._neural_net.state_dict(),
+			os.path.join(HERE, 'data', 'weights.pt'))
 
 	def _download_current_model(self):
 		# download and save the most recent network
@@ -74,10 +144,13 @@ class Model:
 
 			self._optimizer = None
 
+		self._public_key = resp['public-key']
+
 	def _load_state(self):
 		with open(os.path.join(HERE, 'data', 'state.json')) as file:
 			contents = json.loads(file.read())
 			self._cycleid = contents['cycleid']
+			self._public_key = contents['public-key']
 
 	def _load_neural_network(self):
 		from .data.nn import Net
@@ -86,5 +159,6 @@ class Model:
 			torch.load(os.path.join(HERE, 'data', 'weights.pt')))
 
 	def _load_optimizer(self):
-		from .data.optim import optim
-		self._optimizer = optim
+		# implement loading from disk
+		self._optimizer = optim.SGD(self._neural_net.parameters(), lr=0.01)
+		self._criterion = nn.MSELoss()
