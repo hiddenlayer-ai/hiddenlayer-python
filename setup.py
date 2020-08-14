@@ -14,7 +14,7 @@ REQUIRES_PYTHON = '>=3.6.0'
 VERSION = '0.1.0'
 
 REQUIRED = [
-	'torch', 'numpy', 'requests'
+	'torch', 'numpy', 'requests', 'gmpy2'
 ]
 
 here = os.path.abspath(os.path.dirname(__file__))

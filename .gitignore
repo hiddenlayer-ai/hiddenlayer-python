@@ -1,9 +1,14 @@
+# setup.py installation products
 /hlpy.egg-info
 /build
 /dist
 __pycache__
 
+# local data
 /hlpy/data/nn.py
 /hlpy/data/optim.py
 /hlpy/data/weights.pt
 /hlpy/data/state.json
+
+# macos
+.DS_Store
