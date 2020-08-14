@@ -8,6 +8,7 @@ import torch.nn as nn
 import torch.optim as optim
 
 from .client import Client
+from .encrypt import Encryptor
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 
@@ -25,8 +26,9 @@ class Model:
 		self._model_id = model_id
 		self._secret_key = secret_key
 
+		self._encryptor = None
+
 		self._cycleid = None
-		self._public_key = None
 		self._neural_net = None
 		self._optimizer = None
 		self._criterion = None
@@ -78,7 +80,7 @@ class Model:
 		# this is heavily in development / debugging
 
 		# if time to encrypt and send off
-		do = input("test?: ") == "yes"
+		do = input("encrypt test?: ") == "yes"
 
 		if do:
 			parameters = list(self._neural_net.parameters())
@@ -92,12 +94,13 @@ class Model:
 
 			offset = -min(out)  # offset so vals to-be-encrypted will be non-negative
 
-			out = list(map(lambda x: x + offset, out))
+			# function to apply offset to each value and encrypt
+			fn = lambda x: self._encryptor.encrypt(x + offset)
 
-			print(out)
-			print(offset)
+			# apply function
+			out = list(map(fn, out + [offset]))
 
-			# encrypt each value with paillier
+			print(f"[OUT]: {out}")
 
 			# send to the blockchain
 
@@ -107,7 +110,7 @@ class Model:
 
 		state = {
 			'cycleid': self._cycleid,
-			'public-key': self._public_key
+			'public-key': self._encryptor.public_key
 		}
 
 		state_str = json.dumps(state)
@@ -144,13 +147,17 @@ class Model:
 
 			self._optimizer = None
 
-		self._public_key = resp['public-key']
+		public_key = resp['public-key']
+
+		self._encryptor = Encryptor(public_key)
 
 	def _load_state(self):
 		with open(os.path.join(HERE, 'data', 'state.json')) as file:
 			contents = json.loads(file.read())
 			self._cycleid = contents['cycleid']
-			self._public_key = contents['public-key']
+
+			public_key = contents['public-key']
+			self._encryptor = Encryptor(public_key)
 
 	def _load_neural_network(self):
 		from .data.nn import Net

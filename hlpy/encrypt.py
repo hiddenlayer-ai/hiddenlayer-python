@@ -10,7 +10,12 @@ class Encryptor:
 		self._g = self._n + 1
 		self._n2 = self._n * self._n
 
+		self._cache = dict()
+
 	def encrypt(self, plain_text):
+		if plain_text in self._cache:
+			return self._cache[plain_text]
+
 		m = plain_text
 
 		# check for errors and such
@@ -21,7 +26,11 @@ class Encryptor:
 		m = int(gmpy2.powmod(self._g, m, self._n2))
 
 		c = m * r
-		return c % self._n2
+		out = c % self._n2
+
+		self._cache[plain_text] = out
+
+		return out
 
 	@property
 	def public_key(self):
