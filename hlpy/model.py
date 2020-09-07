@@ -6,11 +6,15 @@ import atexit
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import numpy as np
 
 from .client import Client
 from .encrypt import Encryptor
 
 HERE = os.path.dirname(os.path.realpath(__file__))
+
+N = 20
+P = 0.5
 
 class Model:
 	def __init__(self, model_id, secret_key):
@@ -86,7 +90,11 @@ class Model:
 			parameters = list(self._neural_net.parameters())
 
 			# might be able to do better list comprehesions here. check itertools.chain
-			flats = [layer.flatten() for layer in parameters]
+			flats = np.array([layer.flatten() for layer in parameters])
+
+			out = flats + np.random.binomial(n=N, p=P, size=len(flats)) - N * P
+
+			'''
 			out = []
 
 			for each in flats:
@@ -99,6 +107,7 @@ class Model:
 
 			# apply function
 			out = list(map(fn, out + [offset]))
+			'''
 
 			print(f"[OUT]: {out}")
 
